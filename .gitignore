@@ -4,33 +4,3 @@ postgres-data/
 
 # Python virtual env
 venv/
-
-# Python cache
-__pycache__/
-*.pyc
-*.pyo
-*.pyd
-.Python
-
-# Airflow local files
-airflow.cfg
-airflow.db
-logs/
-webserver_pid
-
-# Docker
-.dockerignore
-Dockerfile.*
-*.docker
-
-# Large generated files
-*.parquet
-*.csv  # If any other large CSVs
-
-# OS files
-.DS_Store
-Thumbs.db
-
-# IDE files
-.vscode/
-.idea/
