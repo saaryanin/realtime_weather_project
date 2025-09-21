@@ -1,0 +1,54 @@
+version: '3.8'
+services:
+  postgres:
+    image: postgres:13
+    environment:
+      POSTGRES_USER: airflow
+      POSTGRES_PASSWORD: airflow
+      POSTGRES_DB: airflow
+    volumes:
+      - ./postgres-data:/var/lib/postgresql/data
+  airflow-init:
+    build: .
+    depends_on:
+      - postgres
+    environment:
+      AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:airflow@postgres/airflow
+      AIRFLOW__CORE__FERNET_KEY: "8lIWK40voldVbE1_2YJCjRBVRuwrPvD_gtLZY7ksZLI="
+    command: db init
+  airflow-webserver:
+    build: .
+    volumes:
+      - ./src/dags:/opt/airflow/dags
+      - ./src:/opt/airflow/src
+      - ./requirements.txt:/requirements.txt
+      - ./data:/opt/airflow/data  # New: Mounts root/data for CSV access
+    restart: always
+    depends_on:
+      - postgres
+      - airflow-init
+    environment:
+      AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:airflow@postgres/airflow
+      AIRFLOW__CORE__EXECUTOR: LocalExecutor
+      AIRFLOW__CORE__LOAD_EXAMPLES: 'false'
+      AIRFLOW__CORE__FERNET_KEY: "8lIWK40voldVbE1_2YJCjRBVRuwrPvD_gtLZY7ksZLI="
+      AIRFLOW__CORE__TEST_CONNECTION: Enabled  # Enables Test button
+    ports:
+      - "8080:8080"
+    command: webserver
+  airflow-scheduler:
+    build: .
+    volumes:
+      - ./src/dags:/opt/airflow/dags
+      - ./src:/opt/airflow/src
+      - ./requirements.txt:/requirements.txt
+      - ./data:/opt/airflow/data  # New: Mounts root/data for CSV access
+    restart: always
+    depends_on:
+      - postgres
+      - airflow-init
+    environment:
+      AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:airflow@postgres/airflow
+      AIRFLOW__CORE__FERNET_KEY: "8lIWK40voldVbE1_2YJCjRBVRuwrPvD_gtLZY7ksZLI="
+      AIRFLOW__CORE__TEST_CONNECTION: Enabled  # Enables Test button
+    command: scheduler
