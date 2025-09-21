@@ -34,7 +34,3 @@ Thumbs.db
 # IDE files
 .vscode/
 .idea/
-
-# Spark/Hadoop jars and venv heavies
-venv/Lib/site-packages/pyspark/jars/*
-venv/Lib/site-packages/hadoop/*
