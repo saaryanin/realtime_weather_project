@@ -4,9 +4,14 @@ from airflow.providers.apache.spark.operators.spark_submit import SparkSubmitOpe
 from airflow.providers.snowflake.operators.snowflake import SnowflakeOperator
 from datetime import datetime
 import sys
+from kaggle.api.kaggle_api_extended import KaggleApi
 sys.path.insert(0, '/opt/airflow/src')
 from config import CSV_PATH, PARQUET_PATH  # Import from your config.py
-from extract_batch import extract_kaggle_data  # Your extract function
+
+def extract_kaggle_data(input_path, output_path):
+    api = KaggleApi()
+    api.authenticate()  # Use Kaggle token from env or ~/.kaggle/kaggle.json
+    api.dataset_download_files('sobhanmoosavi/us-weather-events', path='/opt/airflow/data', unzip=True)
 
 dag = DAG('weather_batch', start_date=datetime(2025, 9, 21), schedule_interval='@daily')
 
