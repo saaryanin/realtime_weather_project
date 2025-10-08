@@ -15,6 +15,7 @@ services:
     environment:
       AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:airflow@postgres/airflow
       AIRFLOW__CORE__FERNET_KEY: "8lIWK40voldVbE1_2YJCjRBVRuwrPvD_gtLZY7ksZLI="
+
     command: db init
   airflow-webserver:
     build: .
@@ -22,7 +23,7 @@ services:
       - ./src/dags:/opt/airflow/dags
       - ./src:/opt/airflow/src
       - ./requirements.txt:/requirements.txt
-      - ./data:/opt/airflow/data  # New: Mounts root/data for CSV access
+      - ./data:/opt/airflow/data  # Mounts root/data for CSV access
     restart: always
     depends_on:
       - postgres
@@ -33,6 +34,10 @@ services:
       AIRFLOW__CORE__LOAD_EXAMPLES: 'false'
       AIRFLOW__CORE__FERNET_KEY: "8lIWK40voldVbE1_2YJCjRBVRuwrPvD_gtLZY7ksZLI="
       AIRFLOW__CORE__TEST_CONNECTION: Enabled  # Enables Test button
+      PYTHONWARNINGS: ignore::SyntaxWarning  # Suppress log clutter
+      KAGGLE_USERNAME: ***REMOVED***  # From your kaggle.json
+      KAGGLE_KEY: ***REMOVED***  # From your kaggle.json
+      AIRFLOW__WEBSERVER__SECRET_KEY: ***REMOVED***
     ports:
       - "8080:8080"
     command: webserver
@@ -42,7 +47,7 @@ services:
       - ./src/dags:/opt/airflow/dags
       - ./src:/opt/airflow/src
       - ./requirements.txt:/requirements.txt
-      - ./data:/opt/airflow/data  # New: Mounts root/data for CSV access
+      - ./data:/opt/airflow/data  # Mounts root/data for CSV access
     restart: always
     depends_on:
       - postgres
@@ -51,4 +56,8 @@ services:
       AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:airflow@postgres/airflow
       AIRFLOW__CORE__FERNET_KEY: "8lIWK40voldVbE1_2YJCjRBVRuwrPvD_gtLZY7ksZLI="
       AIRFLOW__CORE__TEST_CONNECTION: Enabled  # Enables Test button
+      PYTHONWARNINGS: ignore::SyntaxWarning  # Suppress log clutter
+      KAGGLE_USERNAME: ***REMOVED***  # From your kaggle.json
+      KAGGLE_KEY: ***REMOVED***  # From your kaggle.json
+      AIRFLOW__WEBSERVER__SECRET_KEY: ***REMOVED***
     command: scheduler
