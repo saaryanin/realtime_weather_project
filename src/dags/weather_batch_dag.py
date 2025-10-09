@@ -6,19 +6,16 @@ from datetime import datetime
 from kaggle.api.kaggle_api_extended import KaggleApi
 import os
 
-# Hardcoded paths (no config import needed)
+# Hardcoded paths
 CSV_PATH = '/opt/airflow/data/WeatherEvents_Jan2016-Dec2022.csv'
 PARQUET_PATH = '/opt/airflow/data/historical.parquet'
 
-
 def extract_kaggle_data(input_path, output_path):
     api = KaggleApi()
-    api.authenticate()  # Uses env vars from docker-compose
+    api.authenticate()
     api.dataset_download_files('sobhanmoosavi/us-weather-events', path='/opt/airflow/data', unzip=True)
-    # Rename unzipped file (dataset unzips to WeatherEvents_Jan2016-Dec2022.csv)
     os.rename('/opt/airflow/data/WeatherEvents_Jan2016-Dec2022.csv', input_path)
     print(f"Extracted to {input_path}. Next: Transform to {output_path}")
-
 
 dag = DAG('weather_batch', start_date=datetime(2025, 9, 21), schedule_interval='@daily')
 
@@ -32,7 +29,7 @@ extract = PythonOperator(
 transform = SparkSubmitOperator(
     task_id='transform',
     application='/opt/airflow/src/transform_load_local.py',
-    conn_id='spark_default',  # Your tested connection
+    conn_id='spark_default',
     application_args=[CSV_PATH, PARQUET_PATH],
     dag=dag
 )
@@ -42,9 +39,10 @@ load_sql = SQLExecuteQueryOperator(
     conn_id='snowflake_default',
     sql="""
     COPY INTO WEATHER_DB.PUBLIC.weather_table 
-    FROM @weather_stage/data/historical.parquet 
+    FROM @weather_stage/historical.parquet/  
     FILE_FORMAT=(TYPE=PARQUET) 
-    MATCH_BY_COLUMN_NAME=CASE_INSENSITIVE;
+    MATCH_BY_COLUMN_NAME=CASE_INSENSITIVE
+    PATTERN='.*\\.parquet';  -- Only load actual Parquet files
 
     CREATE OR REPLACE VIEW aggregated AS 
     SELECT "State", AVG("Precipitation(in)") AS avg_precip, 
