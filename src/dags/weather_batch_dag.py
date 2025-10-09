@@ -39,15 +39,16 @@ transform = SparkSubmitOperator(
 
 load_sql = SQLExecuteQueryOperator(
     task_id='load_sql',
-    conn_id='snowflake_default',  # Your tested connection
+    conn_id='snowflake_default',
     sql="""
     COPY INTO WEATHER_DB.PUBLIC.weather_table 
     FROM @weather_stage/data/historical.parquet 
-    FILE_FORMAT=(TYPE=PARQUET);
+    FILE_FORMAT=(TYPE=PARQUET) 
+    MATCH_BY_COLUMN_NAME=CASE_INSENSITIVE;
 
     CREATE OR REPLACE VIEW aggregated AS 
-    SELECT "State", AVG("Temperature(F)") AS avg_temp, 
-           CASE WHEN avg_temp > 90 THEN 'High' ELSE 'Normal' END AS anomaly 
+    SELECT "State", AVG("Precipitation(in)") AS avg_precip, 
+           CASE WHEN avg_precip > 0.5 THEN 'High' ELSE 'Normal' END AS anomaly 
     FROM weather_table GROUP BY "State";
     """,
     dag=dag

@@ -38,6 +38,8 @@ services:
       KAGGLE_USERNAME: ***REMOVED***  # From your kaggle.json
       KAGGLE_KEY: ***REMOVED***  # From your kaggle.json
       AIRFLOW__WEBSERVER__SECRET_KEY: ***REMOVED***
+      AWS_ACCESS_KEY_ID: ***REMOVED***
+      AWS_SECRET_ACCESS_KEY: ***REMOVED***
     ports:
       - "8080:8080"
     command: webserver
@@ -60,4 +62,6 @@ services:
       KAGGLE_USERNAME: ***REMOVED***  # From your kaggle.json
       KAGGLE_KEY: ***REMOVED***  # From your kaggle.json
       AIRFLOW__WEBSERVER__SECRET_KEY: ***REMOVED***
+      AWS_ACCESS_KEY_ID: ***REMOVED***
+      AWS_SECRET_ACCESS_KEY: ***REMOVED***
     command: scheduler

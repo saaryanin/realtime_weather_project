@@ -1,19 +1,26 @@
 from pyspark.sql import SparkSession
 import sys
+import boto3
 import os
-import boto3  # Prep for AWS
 
 if __name__ == "__main__":
     input_path = sys.argv[1]
     output_path = sys.argv[2]
 
     spark = SparkSession.builder.appName("WeatherTransform").master("local[*]").getOrCreate()
-    try:
-        df = spark.read.csv(input_path, header=True, inferSchema=True)
-        df = df.filter(df["Temperature(F)"].isNotNull()).select("State", "Temperature(F)", "Severity")
-        df.write.mode("overwrite").parquet(output_path)
-        print(f"Transformed to {output_path}")
-    except Exception as e:
-        print(f"Spark error: {e}")
-    finally:
-        spark.stop()
+    df = spark.read.csv(input_path, header=True, inferSchema=True)
+    df = df.filter(df["Precipitation(in)"].isNotNull()).select("State", "Precipitation(in)", "Severity")
+    df.write.mode("overwrite").parquet(output_path)
+    spark.stop()
+
+    # AWS S3 upload directory (hands-on fix for Parquet dir)
+    s3 = boto3.client('s3')
+    bucket_name = 'weather-etl-bucket-yanin'  # Update to your bucket
+    s3_prefix = 'data/historical.parquet/'  # S3 path
+
+    for root, dirs, files in os.walk(output_path):
+        for file in files:
+            local_file = os.path.join(root, file)
+            s3_key = s3_prefix + local_file[len(output_path)+1:]  # Strip base path
+            s3.upload_file(local_file, bucket_name, s3_key)
+    print("Uploaded Parquet directory to S3: " + bucket_name + "/" + s3_prefix)
