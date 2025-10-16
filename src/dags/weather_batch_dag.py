@@ -2,9 +2,13 @@ from airflow import DAG
 from airflow.operators.python import PythonOperator
 from airflow.providers.apache.spark.operators.spark_submit import SparkSubmitOperator
 from airflow.providers.common.sql.operators.sql import SQLExecuteQueryOperator
+from airflow.providers.snowflake.hooks.snowflake import SnowflakeHook
 from datetime import datetime
 from kaggle.api.kaggle_api_extended import KaggleApi
 import os
+import matplotlib.pyplot as plt
+import pandas as pd
+import boto3
 
 # Hardcoded paths
 CSV_PATH = '/opt/airflow/data/WeatherEvents_Jan2016-Dec2022.csv'
@@ -38,11 +42,28 @@ load_sql = SQLExecuteQueryOperator(
     task_id='load_sql',
     conn_id='snowflake_default',
     sql="""
+    CREATE OR REPLACE TABLE WEATHER_DB.PUBLIC.weather_table (
+        "EventId" STRING,
+        "Type" STRING,
+        "Severity" STRING,
+        "StartTime(UTC)" TIMESTAMP,
+        "EndTime(UTC)" TIMESTAMP,
+        "Precipitation(in)" FLOAT,
+        "TimeZone" STRING,
+        "AirportCode" STRING,
+        "LocationLat" FLOAT,
+        "LocationLng" FLOAT,
+        "City" STRING,
+        "County" STRING,
+        "State" STRING,
+        "ZipCode" STRING
+    );
+
     COPY INTO WEATHER_DB.PUBLIC.weather_table 
     FROM @weather_stage/historical.parquet/  
     FILE_FORMAT=(TYPE=PARQUET) 
     MATCH_BY_COLUMN_NAME=CASE_INSENSITIVE
-    PATTERN='.*\\.parquet';  -- Only load actual Parquet files
+    PATTERN='.*\\.parquet';
 
     CREATE OR REPLACE VIEW aggregated AS 
     SELECT "State", AVG("Precipitation(in)") AS avg_precip, 
@@ -52,4 +73,39 @@ load_sql = SQLExecuteQueryOperator(
     dag=dag
 )
 
-extract >> transform >> load_sql
+def analyze_rain_severity(**context):
+    hook = SnowflakeHook(snowflake_conn_id='snowflake_default')
+    conn = hook.get_conn()
+    query = """
+    SELECT "Severity", COUNT(*) AS "count"
+    FROM weather_table
+    WHERE "Type" = 'Rain' AND "City" = 'Los Angeles'
+    GROUP BY "Severity"
+    ORDER BY "count" DESC;
+    """
+    df = pd.read_sql(query, conn)
+    conn.close()
+
+    # Plot with matplotlib
+    plt.figure(figsize=(8, 6))
+    plt.bar(df['Severity'], df['count'])
+    plt.title('Count of Rain Events by Severity in Los Angeles')
+    plt.xlabel('Severity')
+    plt.ylabel('Count')
+    plt.xticks(rotation=45)
+    plt.tight_layout()
+    plot_path = '/opt/airflow/data/rain_severity_la.png'
+    plt.savefig(plot_path)
+
+    # Upload to S3 (for Flask API access)
+    s3 = boto3.client('s3')
+    s3.upload_file(plot_path, 'weather-etl-bucket-yanin', 'plots/rain_severity_la.png')
+    print("Graph uploaded to S3")
+
+analyze_rain = PythonOperator(
+    task_id='analyze_rain_severity',
+    python_callable=analyze_rain_severity,
+    dag=dag
+)
+
+extract >> transform >> load_sql >> analyze_rain
