@@ -102,10 +102,49 @@ def analyze_rain_severity(**context):
     s3.upload_file(plot_path, 'weather-etl-bucket-yanin', 'plots/rain_severity_la.png')
     print("Graph uploaded to S3")
 
+def analyze_rain_frequency_trends(**context):
+    cities = ['New York', 'Los Angeles', 'Chicago', 'Philadelphia', 'Houston', 'Phoenix', 'Washington']
+    hook = SnowflakeHook(snowflake_conn_id='snowflake_default')
+    placeholders = ', '.join(['%s'] * len(cities))  # For parameterized query (ELT best practice)
+    query = f"""
+    SELECT "City", YEAR("StartTime(UTC)") AS "year", COUNT(*) AS "count"
+    FROM weather_table
+    WHERE "Type" = 'Rain' AND "City" IN ({placeholders})
+    GROUP BY "City", "year"
+    ORDER BY "City", "year";
+    """
+    df = hook.get_pandas_df(query, parameters=cities)
+
+    # Pivot for multi-line plot
+    pivot_df = df.pivot(index='year', columns='City', values='count').fillna(0)
+
+    # Plot with matplotlib (all cities on one graph, different colors)
+    plt.figure(figsize=(10, 6))
+    pivot_df.plot(kind='line', marker='o')
+    plt.title('Rain Event Frequency Trends by City (2016-2022)')
+    plt.xlabel('Year')
+    plt.ylabel('Number of Rain Events')
+    plt.legend(title='City', bbox_to_anchor=(1.05, 1), loc='upper left')
+    plt.grid(True)
+    plt.tight_layout()
+    plot_path = '/opt/airflow/data/rain_frequency_trends.png'
+    plt.savefig(plot_path)
+
+    # Upload to S3 (for Flask API access)
+    s3 = boto3.client('s3')
+    s3.upload_file(plot_path, 'weather-etl-bucket-yanin', 'plots/rain_frequency_trends.png')
+    print("Rain frequency trends graph uploaded to S3")
+
 analyze_rain = PythonOperator(
     task_id='analyze_rain_severity',
     python_callable=analyze_rain_severity,
     dag=dag
 )
 
-extract >> transform >> load_sql >> analyze_rain
+analyze_frequency_trends = PythonOperator(
+    task_id='analyze_rain_frequency_trends',
+    python_callable=analyze_rain_frequency_trends,
+    dag=dag
+)
+
+extract >> transform >> load_sql >> [analyze_rain, analyze_frequency_trends]

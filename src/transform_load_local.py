@@ -1,4 +1,5 @@
 from pyspark.sql import SparkSession
+from pyspark.sql.functions import col  # Add this import for filtering
 import sys
 import boto3
 import os
@@ -9,6 +10,8 @@ if __name__ == "__main__":
 
     spark = SparkSession.builder.appName("WeatherTransform").master("local[*]").getOrCreate()
     df = spark.read.csv(input_path, header=True, inferSchema=True)
+    cities = ['New York', 'Los Angeles', 'Chicago', 'Philadelphia', 'Houston', 'Phoenix', 'Washington']
+    df = df.filter(col("City").isin(cities))  # Filter to only your 7 cities (reduces data volume)
     df.write.mode("overwrite").parquet(output_path)  # Keep all columns
     spark.stop()
 
